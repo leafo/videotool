@@ -14,9 +14,9 @@ import types from require "tableshape"
 
 import printable_character from require "lapis.util.utf8"
 
-import P, C, Cs from require "lpeg"
-
-truncate_response = Cs (printable_character + P(1) / "")^-100
+truncate_response = do
+  import P, Cs from require "lpeg"
+  Cs (printable_character + P(1) / "")^-100
 
 extract_formats = types.partial {
   formats: types.array_of types.one_of {
@@ -103,9 +103,7 @@ download_video = (video_id, preferred_formats={}) ->
 
   -- see if we can find the format we want
   for fid in *preferred_formats
-    print "test: #{fid}"
     for f in *formats
-      print "trying #{fid} == #{f.format_id}"
       if tostring(fid) == tostring(f.format_id)
         format = f
         break
@@ -231,7 +229,7 @@ class extends lapis.Application
   --   -map '[outv]' \
   --   out2.mp4
 
-  "/youtube/:video_id/slice": capture_errors_json respond_to {
+  "/youtube/:video_id/slice/:ranges": capture_errors_json respond_to {
     GET: =>
       -- source_bytes, format = assert_error get_source @params.video_id
       config = require("lapis.config").get!
@@ -239,12 +237,48 @@ class extends lapis.Application
 
       shell = require "resty.shell"
 
-      args = {
-        "ffmpeg"
-        "-ss", "5.0", "-to", "6.0", "-i", source_uri
-        "-ss", "60.0", "-to", "61.0", "-i", source_uri
+      parse_ranges = do
+        import R, P, C, Ct from require "lpeg"
+        range_value = R"09"^1 * (P"." * R"09" * R"09"^-1)^-1
+        range = Ct C(range_value) * P"-" * C(range_value)
+        Ct range * (P"," * range)^0 * -1
 
-        "-filter_complex", "[0:v][1:v]concat=n=2:v=1[outv]"
+      ranges = assert_error parse_ranges\match(@params.ranges), "failed to parse ranges: #{@params.ranges}"
+
+      generate_filter = (ranges, args={}) ->
+        local max_time
+
+        for idx, {start, stop} in ipairs ranges
+          start_num = tonumber start
+          stop_num = tonumber stop
+          assert_error start_num < stop_num, "range is not valid, start is at or before stop"
+
+          if max_time
+            assert_error start_num >= max_time, "range is not valid, ranges must be in time order and not overlap"
+
+          max_time = stop_num
+
+          table.insert args, "-ss"
+          table.insert args, start
+          table.insert args, "-to"
+          table.insert args, stop
+          table.insert args, "-i"
+          table.insert args, source_uri
+
+        -- add filter mapping
+        table.insert args, "-filter_complex"
+        table.insert args, "#{table.concat ["[#{idx-1 }:v]" for idx in ipairs ranges]}concat=n=#{#ranges}:v=1[outv]"
+
+        args
+
+      args = {"ffmpeg"}
+
+      generate_filter ranges, args
+
+      for a in *{
+        -- this can't be combined with filter_complex
+        -- "-vf", "scale=w=256:h=144:force_original_aspect_ratio=decrease"
+
         "-map", "[outv]"
         "-vcodec", "h264"
         "-crf", "18"
@@ -253,6 +287,7 @@ class extends lapis.Application
         "-an"
         "-"
       }
+        table.insert args, a
 
       import notice from require "lapis.logging"
       notice "TRANSCODING VIDEO: #{table.concat args, " "}"
