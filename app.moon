@@ -48,16 +48,6 @@ CACHE_DURATION_SHORT = 60*60 -- 1 hour
 MAX_TIMEOUT = 10*60*1000 -- 10 minutes
 MAX_DOWNLOAD_SIZE = 1024*1024*1000 -- 1000mb
 
--- ffmpeg -i in.mkv -vf "select='between(t\,5\,6)+between(t\,60\,61)', setpts=N/FRAME_RATE/TB" -an out.mp4
---
---
--- ffmpeg \
---   -ss 5.0 -to 6.0 -i in.mkv \
---   -ss 60.0 -to 61.0 -i in.mkv \
---   -filter_complex '[0:v][1:v]concat=n=2:v=1[outv]' \
---   -map '[outv]' \
---   out2.mp4
-
 content_type_for_format = (format) ->
   switch format.ext
     when "webm"
@@ -83,6 +73,24 @@ get_formats = (video_id) ->
 
   if res.status == 200
     from_json(res.body).formats
+  else
+    nil, "failed to download formats: #{res.status}"
+
+get_source = (video_id) ->
+  config = require("lapis.config").get!
+  uri = "http://127.0.0.1:#{config.port}/youtube/#{video_id}/source"
+
+  http = require "resty.http"
+  httpc = http.new!
+  httpc\set_timeout MAX_TIMEOUT
+
+  res, err = assert httpc\request_uri uri, {
+    method: "GET"
+    keepalive: false
+  }
+
+  if res.status == 200
+    res.body, from_json res.headers["X-Format"]
   else
     nil, "failed to download formats: #{res.status}"
 
@@ -115,7 +123,6 @@ download_video = (video_id, preferred_formats={}) ->
   }
 
   import notice from require "lapis.logging"
-
   notice "DOWNLOADING VIDEO: #{table.concat args, " "}"
   start_time = socket.gettime!
 
@@ -212,3 +219,66 @@ class extends lapis.Application
       }
   }
 
+
+
+  -- ffmpeg -i in.mkv -vf "select='between(t\,5\,6)+between(t\,60\,61)', setpts=N/FRAME_RATE/TB" -an out.mp4
+  --
+  --
+  -- ffmpeg \
+  --   -ss 5.0 -to 6.0 -i in.mkv \
+  --   -ss 60.0 -to 61.0 -i in.mkv \
+  --   -filter_complex '[0:v][1:v]concat=n=2:v=1[outv]' \
+  --   -map '[outv]' \
+  --   out2.mp4
+
+  "/youtube/:video_id/slice": capture_errors_json respond_to {
+    GET: =>
+      -- source_bytes, format = assert_error get_source @params.video_id
+      config = require("lapis.config").get!
+      source_uri = "http://127.0.0.1:#{config.port}/youtube/#{@params.video_id}/source"
+
+      shell = require "resty.shell"
+
+      args = {
+        "ffmpeg"
+        "-ss", "5.0", "-to", "6.0", "-i", source_uri
+        "-ss", "60.0", "-to", "61.0", "-i", source_uri
+
+        "-filter_complex", "[0:v][1:v]concat=n=2:v=1[outv]"
+        "-map", "[outv]"
+        "-vcodec", "h264"
+        "-crf", "18"
+        "-movflags", "frag_keyframe+empty_moov" -- this allows us to pipe the output
+        "-f", "mp4"
+        "-an"
+        "-"
+      }
+
+      import notice from require "lapis.logging"
+      notice "TRANSCODING VIDEO: #{table.concat args, " "}"
+
+      start_time = socket.gettime!
+
+      ok, stdout, stderr, reason, status = shell.run args, nil, MAX_TIMEOUT, MAX_DOWNLOAD_SIZE
+
+      elapsed = socket.gettime! - start_time
+
+      notice "TRANSCODING COMPLETE: [#{"%.2fs"\format(elapsed)}] ok: #{ok}, stdout: #{#(stdout or "")}"
+
+      unless ok
+        stderr_summary = if stderr
+          trim truncate_response\match stderr
+
+        return status: 500, json: {
+          errors: {"failed to transcode"}
+          :ok
+          :stderr
+          :reason
+          :status
+        }
+
+      stdout, {
+        layout: false
+        content_type: "video/mp4"
+      }
+  }
