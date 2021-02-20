@@ -217,10 +217,7 @@ class extends lapis.Application
       }
   }
 
-
-
-  -- ffmpeg -i in.mkv -vf "select='between(t\,5\,6)+between(t\,60\,61)', setpts=N/FRAME_RATE/TB" -an out.mp4
-  --
+  -- Example command:
   --
   -- ffmpeg \
   --   -ss 5.0 -to 6.0 -i in.mkv \
