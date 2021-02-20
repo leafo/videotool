@@ -229,13 +229,42 @@ class extends lapis.Application
   --   -map '[outv]' \
   --   out2.mp4
 
-  "/youtube/:video_id/slice/:ranges": capture_errors_json respond_to {
+  "/youtube/:video_id/slice/:ranges(/:width[%d]x:height[%d](/:quality[%d]))": capture_errors_json respond_to {
     GET: =>
       -- source_bytes, format = assert_error get_source @params.video_id
       config = require("lapis.config").get!
       source_uri = "http://127.0.0.1:#{config.port}/youtube/#{@params.video_id}/source"
 
-      shell = require "resty.shell"
+
+      parse_dimension = do
+        import R, P from require "lpeg"
+        R("09") * R("09")^-3 * P -1
+
+      parse_quality = do
+        import R, P from require "lpeg"
+        R("09") * R("09")^-1 * P -1
+
+      local quality, width, height
+
+      if @params.width
+        assert_error parse_dimension\match(@params.width), "invalid width"
+        assert_error parse_dimension\match(@params.height), "invalid width"
+
+        width = tonumber @params.width
+        assert_error width >= 10 and width <= 1080, "width must be between 10 and 1080"
+
+        height = tonumber @params.height
+        assert_error height >= 10 and height <= 1080, "height must be between 10 and 1080"
+      else
+        width = 1280
+        height = 720
+
+      if @params.quality
+        assert_error parse_quality\match(@params.quality), "invalid quality"
+        quality = tonumber @params.quality
+        assert_error quality >= 0 and quality <= 51, "quality must be between 0 and 51"
+      else
+        quality = 25
 
       parse_ranges = do
         import R, P, C, Ct from require "lpeg"
@@ -245,7 +274,7 @@ class extends lapis.Application
 
       ranges = assert_error parse_ranges\match(@params.ranges), "failed to parse ranges: #{@params.ranges}"
 
-      generate_filter = (ranges, args={}) ->
+      generate_inputs = (ranges, args={}) ->
         local max_time
 
         for idx, {start, stop} in ipairs ranges
@@ -265,23 +294,22 @@ class extends lapis.Application
           table.insert args, "-i"
           table.insert args, source_uri
 
-        -- add filter mapping
-        table.insert args, "-filter_complex"
-        table.insert args, "#{table.concat ["[#{idx-1 }:v]" for idx in ipairs ranges]}concat=n=#{#ranges}:v=1[outv]"
-
         args
 
       args = {"ffmpeg"}
 
-      generate_filter ranges, args
+      generate_inputs ranges, args
 
       for a in *{
-        -- this can't be combined with filter_complex
-        -- "-vf", "scale=w=256:h=144:force_original_aspect_ratio=decrease"
+        "-filter_complex"
+        table.concat { -- filters, must output [outv]
+          "#{table.concat ["[#{idx-1 }:v]" for idx in ipairs ranges]}concat=n=#{#ranges}:v=1"
+          "scale=w=#{width}:h=#{height}:force_original_aspect_ratio=decrease[outv]"
+        }, ","
 
         "-map", "[outv]"
         "-vcodec", "h264"
-        "-crf", "18"
+        "-crf", "#{quality}"
         "-movflags", "frag_keyframe+empty_moov" -- this allows us to pipe the output
         "-f", "mp4"
         "-an"
@@ -292,10 +320,10 @@ class extends lapis.Application
       import notice from require "lapis.logging"
       notice "TRANSCODING VIDEO: #{table.concat args, " "}"
 
+      shell = require "resty.shell"
+
       start_time = socket.gettime!
-
       ok, stdout, stderr, reason, status = shell.run args, nil, MAX_TIMEOUT, MAX_DOWNLOAD_SIZE
-
       elapsed = socket.gettime! - start_time
 
       notice "TRANSCODING COMPLETE: [#{"%.2fs"\format(elapsed)}] ok: #{ok}, stdout: #{#(stdout or "")}"
@@ -315,5 +343,10 @@ class extends lapis.Application
       stdout, {
         layout: false
         content_type: "video/mp4"
+        headers: {
+          "X-Accel-Expires": CACHE_DURATION_SHORT
+          "X-Args": table.concat args, " "
+          "X-Encode-Time": "%.2fs"\format elapsed
+        }
       }
   }
