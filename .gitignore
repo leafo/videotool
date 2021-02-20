@@ -7,3 +7,4 @@ nginx.conf.compiled
 /lua_modules
 /.luarocks
 videocache
+node_modules

@@ -1,0 +1,4 @@
+.gitignore
+
+: app.jsx |> npx esbuild %f --bundle --minify --define:process.env.NODE_ENV=\"production\" --outfile=%o |> %B.js
+: foreach *.scss |> sassc < %f > %o |> %B.css
