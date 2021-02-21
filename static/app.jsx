@@ -82,10 +82,10 @@ class Scrubber extends React.PureComponent {
 class Main extends React.Component {
   componentDidMount() {
     // try to load the entire video from url
-    fetch(this.preview_url()).then((res) => res.arrayBuffer()).then((res) => {
+    fetch(this.previewURL()).then((res) => res.arrayBuffer()).then((res) => {
       let blob = new Blob([res])
-      let object_url = URL.createObjectURL(blob)
-      this.video_ref.current.src = object_url
+      let objectURL = URL.createObjectURL(blob)
+      this.videoRef.current.src = objectURL
       this.setState({
         ready: true
       })
@@ -95,19 +95,19 @@ class Main extends React.Component {
   constructor(props) {
     super(props)
     this.state = {
-      video_id: "FLi0St-B8vw",
-      current_time: 0,
+      videoID: "FLi0St-B8vw",
+      currentTime: 0,
       segments: []
     }
   }
 
-  push_segment(start, stop) {
+  pushSegment(start, stop) {
     this.setState({
       segments: this.state.segments([start, stop])
     })
   }
 
-  update_segment(idx, start, stop) {
+  updateSegment(idx, start, stop) {
     this.setState({
       segments: this.state.segments.map((s, i) => {
         if (i == idx) {
@@ -119,31 +119,31 @@ class Main extends React.Component {
     })
   }
 
-  sort_segments() {
+  sortSegments() {
     let copy = this.state.segments.slice()
     copy.sort((a,b) => a[0] - b[0])
     return copy
   }
 
-  preview_url() {
-    return `/youtube/${this.state.video_id}/preview`
+  previewURL() {
+    return `/youtube/${this.state.videoID}/preview`
   }
 
-  render_url() {
-    let segments = this.sort_segments()
+  renderURL() {
+    let segments = this.sortSegments()
     let slice = segments.map(([start, stop]) => `${start}-${stop}`).join(",")
-    return `/youtube/${this.state.video_id}/slice/${slice}`
+    return `/youtube/${this.state.videoID}/slice/${slice}`
   }
 
   setTime(time) {
-    let video = this.video_ref.current
+    let video = this.videoRef.current
     if (video) {
       video.currentTime = time
     }
   }
 
   render() {
-    this.video_ref ||= React.createRef()
+    this.videoRef ||= React.createRef()
     this._setTime ||= this.setTime.bind(this)
 
     return <div class="video_editor">
@@ -157,25 +157,26 @@ class Main extends React.Component {
 
         onTimeUpdate={e => {
           this.setState({
-            current_time: e.target.currentTime
+            currentTime: e.target.currentTime
           })
         }}
-        ref={this.video_ref} />
+        ref={this.videoRef} />
 
       <Scrubber
         segments={this.state.segments}
         setCurrentTime={this._setTime}
+        currentTime={this.currentTime}
         duration={this.state.duration}
       />
 
       <div class="playback_controls">
         <button type="button" onClick={e => {
-          let video = this.video_ref.current
+          let video = this.videoRef.current
           video.currentTime += 1
         }}>Add Second</button>
         {" "}
         <code class="current_time">
-          {this.state.current_time}
+          {this.state.currentTime}
           /
           {this.state.duration}
         </code>
@@ -202,7 +203,7 @@ class Main extends React.Component {
 
           {" "}
 
-          <code>{this.render_url()}</code>
+          <code>{this.renderURL()}</code>
         </fieldset>
       </div>
 
