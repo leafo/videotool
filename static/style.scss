@@ -10,4 +10,19 @@ video.video_preview {
     height: 20px;
     background: #dadada;
     margin: 20px 100px;
+    position: relative;
+    overflow: hidden;
+
+    &:focus {
+    }
+
+    .current_time {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 5px;
+        background: #7BDE73;
+        margin-left: -2px;
+        pointer-events: none;
+    }
 }

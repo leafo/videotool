@@ -30,7 +30,13 @@ class Scrubber extends React.PureComponent {
     let p = (clientX - rect.left) / rect.width
     p = Math.max(0, Math.min(1, p))
 
-    console.log("updateValue", p)
+    if (this.props.setCurrentTime && this.props.duration != null) {
+      let newTime = p * this.props.duration
+      this.props.setCurrentTime(newTime)
+      this.setState({
+        _lastSelectedTime: newTime
+      })
+    }
   }
 
   createMouseUpListener() {
@@ -51,6 +57,7 @@ class Scrubber extends React.PureComponent {
 
   startDrag (e) {
     this.updateValue(e.clientX, e.clientY)
+    this.scrubberRef.current.focus()
 
     this.setState({
       windowListener: this.createMouseUpListener(),
@@ -61,10 +68,30 @@ class Scrubber extends React.PureComponent {
     })
   }
 
+  isDragging() {
+    return !!this.state.moveListener
+  }
+
   render() {
     this.scrubberRef ||= React.createRef()
 
+    let currentTime = null
+    if (this.props.duration != null) {
+      // if we are dragging then use the active selection to make it feel smoother
+      let p = 0
+      if (this.isDragging() && this.state._lastSelectedTime != null) {
+        p = this.state._lastSelectedTime / this.props.duration
+      } else {
+        p = this.props.currentTime / this.props.duration
+      }
+
+      currentTime = <div class="current_time" style={{
+        left: `${p * 100}%`
+      }}></div>
+    }
+
     return <div
+      tabIndex="0"
       ref={this.scrubberRef}
       class={classNames("scrubber", {
         listening: !!this.state.windowListener
@@ -74,7 +101,9 @@ class Scrubber extends React.PureComponent {
         this.startDrag(e)
       }}
       onMouseMove={this.state.moveListener}
-    ></div>
+    >
+      {currentTime}
+    </div>
   }
 }
 
@@ -165,7 +194,7 @@ class Main extends React.Component {
       <Scrubber
         segments={this.state.segments}
         setCurrentTime={this._setTime}
-        currentTime={this.currentTime}
+        currentTime={this.state.currentTime}
         duration={this.state.duration}
       />
 
