@@ -9,20 +9,28 @@ video.video_preview {
 .scrubber {
     height: 20px;
     background: #dadada;
-    margin: 20px 100px;
+    margin: 20px 0;
     position: relative;
     overflow: hidden;
 
-    &:focus {
-    }
-
     .current_time {
+        z-index: 2;
         position: absolute;
         top: 0;
         bottom: 0;
         width: 5px;
-        background: #7BDE73;
+        background: rgba(#8CFF82, 0.8);
         margin-left: -2px;
+        pointer-events: none;
+    }
+
+    .segment {
+        z-index: 1;
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        background: rgba(black, 0.2);
+        min-width: 1px;
         pointer-events: none;
     }
 }

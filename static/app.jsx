@@ -15,9 +15,14 @@ class Scrubber extends React.PureComponent {
   }
 
   unbindWindowListener() {
-    if (this.state.windowListener) {
-      window.removeEventListener('mouseup', this.state.windowListener)
-      this.setState({ windowListener: null })
+    if (this.state.windowMoveListener) {
+      window.removeEventListener('mousemove', this.state.windowMoveListener)
+      window.removeEventListener('mouseup', this.state.windowUpListener)
+
+      this.setState({
+        windowMoveListener: null,
+        windowUpListener: null
+      })
     }
   }
 
@@ -45,13 +50,6 @@ class Scrubber extends React.PureComponent {
       return
     }
 
-    let windowListener = e => {
-      this.updateValue(e.clientX, e.clientY)
-      this.unbindWindowListener()
-      this.setState({ moveListener: null })
-    }
-
-    window.addEventListener('mouseup', windowListener)
     return windowListener
   }
 
@@ -59,23 +57,35 @@ class Scrubber extends React.PureComponent {
     this.updateValue(e.clientX, e.clientY)
     this.scrubberRef.current.focus()
 
+    let windowUpListener = e => {
+      this.updateValue(e.clientX, e.clientY)
+      this.unbindWindowListener()
+    }
+
+    let windowMoveListener = e => {
+      e.preventDefault()
+      this.updateValue(e.clientX, e.clientY)
+    }
+
+    window.addEventListener('mouseup', windowUpListener)
+    window.addEventListener('mousemove', windowMoveListener)
+
     this.setState({
-      windowListener: this.createMouseUpListener(),
-      moveListener: e => {
-        e.preventDefault()
-        this.updateValue(e.clientX, e.clientY)
-      }
+      windowUpListener,
+      windowMoveListener
     })
   }
 
   isDragging() {
-    return !!this.state.moveListener
+    return !!this.state.windowMoveListener
   }
 
   render() {
     this.scrubberRef ||= React.createRef()
 
     let currentTime = null
+    let segments = null
+
     if (this.props.duration != null) {
       // if we are dragging then use the active selection to make it feel smoother
       let p = 0
@@ -88,21 +98,53 @@ class Scrubber extends React.PureComponent {
       currentTime = <div class="current_time" style={{
         left: `${p * 100}%`
       }}></div>
+
+      segments = this.props.segments.map(([start, stop], idx) =>
+        <div class="segment" key={`segment-${idx}`} style={{
+          left: `${start / this.props.duration * 100}%`,
+          width: `${(stop - start) / this.props.duration * 100}%`
+        }}></div>
+      )
     }
 
     return <div
       tabIndex="0"
       ref={this.scrubberRef}
       class={classNames("scrubber", {
-        listening: !!this.state.windowListener
+        dragging: this.isDragging()
       })}
       onMouseDown={e => {
         e.preventDefault()
         this.startDrag(e)
       }}
-      onMouseMove={this.state.moveListener}
+      onKeyDown={e => {
+        let delta
+        switch (e.keyCode) {
+          case 32:
+            this.props.togglePlay()
+            break
+          case 37: // left
+            delta = -1
+            break
+          case 39: // right
+            delta = 1
+            break
+          case 38: // up
+            delta = 60
+            break
+          case 40: // down
+            delta = -60
+            break
+        }
+
+        if (delta != null) {
+          let frameTime = 1/60
+          this.props.setCurrentTime(this.props.currentTime + frameTime * delta)
+        }
+      }}
     >
       {currentTime}
+      {segments}
     </div>
   }
 }
@@ -132,7 +174,9 @@ class Main extends React.Component {
 
   pushSegment(start, stop) {
     this.setState({
-      segments: this.state.segments([start, stop])
+      segments: this.state.segments.concat([
+        [start, stop]
+      ])
     })
   }
 
@@ -148,6 +192,12 @@ class Main extends React.Component {
     })
   }
 
+  removeSegment(idx) {
+    this.setState({
+      segments: this.state.segments.filter((s, i) => i != idx)
+    })
+  }
+
   sortSegments() {
     let copy = this.state.segments.slice()
     copy.sort((a,b) => a[0] - b[0])
@@ -160,7 +210,7 @@ class Main extends React.Component {
 
   renderURL() {
     let segments = this.sortSegments()
-    let slice = segments.map(([start, stop]) => `${start}-${stop}`).join(",")
+    let slice = segments.map(([start, stop]) => `${start.toFixed(2)}-${stop.toFixed(2)}`).join(",")
     return `/youtube/${this.state.videoID}/slice/${slice}`
   }
 
@@ -171,9 +221,21 @@ class Main extends React.Component {
     }
   }
 
+  togglePlay() {
+    let video = this.videoRef.current
+    if (video) {
+      if (video.paused) {
+        video.play()
+      } else {
+        video.pause()
+      }
+    }
+  }
+
   render() {
     this.videoRef ||= React.createRef()
     this._setTime ||= this.setTime.bind(this)
+    this._togglePlay ||= this.togglePlay.bind(this)
 
     return <div class="video_editor">
       <video
@@ -194,48 +256,51 @@ class Main extends React.Component {
       <Scrubber
         segments={this.state.segments}
         setCurrentTime={this._setTime}
+        togglePlay={this._togglePlay}
         currentTime={this.state.currentTime}
         duration={this.state.duration}
       />
 
       <div class="playback_controls">
-        <button type="button" onClick={e => {
-          let video = this.videoRef.current
-          video.currentTime += 1
-        }}>Add Second</button>
-        {" "}
         <code class="current_time">
           {this.state.currentTime}
           /
           {this.state.duration}
         </code>
-
-        <fieldset>
-          <legend>Segments</legend>
-          <ul>
-            {this.state.segments.map(([start,stop]) =>
-              <li>
-                <code>{start}</code> —
-                <code>{stop}</code>
-              </li>
-            )}
-          </ul>
-
-        </fieldset>
-
-        <fieldset>
-          <legend>Render</legend>
-
-          <button type="button" onClick={e => {
-            alert("not yet...")
-          }}>Render</button>
-
-          {" "}
-
-          <code>{this.renderURL()}</code>
-        </fieldset>
       </div>
 
+      <fieldset>
+        <legend>Segments</legend>
+        <button
+          type="button"
+          onClick={e => {
+            this.pushSegment(this.state.currentTime, this.state.currentTime + 2)
+          }}
+        >New Segment</button>
+
+        <ul>
+          {this.state.segments.map(([start,stop], idx) =>
+            <li>
+              <code>{start}</code> —
+              <code>{stop}</code>
+              {" "}
+              <button type="button" onClick={e => this.removeSegment(idx)}>Remove</button>
+            </li>
+          )}
+        </ul>
+
+      </fieldset>
+
+      <fieldset>
+        <legend>Render</legend>
+        {
+          this.state.segments.length ?
+            <code>
+              <a target="_blank" href={this.renderURL()}>{this.renderURL()}</a>
+            </code>
+          : <em>Create at least one segment to render</em>
+        }
+      </fieldset>
     </div>;
   }
 }
