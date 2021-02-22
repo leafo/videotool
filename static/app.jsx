@@ -205,7 +205,7 @@ class Main extends React.Component {
   }
 
   previewURL() {
-    return `/youtube/${this.state.videoID}/preview`
+    return `/youtube/${this.state.videoID}/preview-transcode`
   }
 
   renderURL() {

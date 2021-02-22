@@ -138,6 +138,68 @@ download_video = (video_id, preferred_formats={}) ->
 
   stdout, format
 
+transcode_video = (args, opts) ->
+  import notice from require "lapis.logging"
+  notice "TRANSCODING VIDEO: #{table.concat args, " "}"
+
+  shell = require "resty.shell"
+
+  local tempname
+
+  if file_var = opts and opts.through_file
+    replaced = false
+    tempname = os.tmpname!
+    -- it may have been created right away so we can remove so ffmpeg doesn't complain
+    -- see https://www.lua.org/manual/5.1/manual.html#pdf-os.tmpname
+    os.remove tempname
+
+    args = for arg in *args
+      if arg == file_var
+        tempname
+      else
+        arg
+
+  start_time = socket.gettime!
+  ok, stdout, stderr, reason, status = shell.run args, nil, MAX_TIMEOUT, MAX_DOWNLOAD_SIZE
+  elapsed = socket.gettime! - start_time
+
+  notice "TRANSCODING COMPLETE: [#{"%.2fs"\format(elapsed)}] ok: #{ok}, stdout: #{#(stdout or "")}"
+
+  unless ok
+    stderr_summary = if stderr
+      trim truncate_response\match stderr
+
+    return status: 500, json: {
+      errors: {"failed to transcode"}
+      :ok
+      :stderr
+      :reason
+      :status
+      :args
+    }
+
+  content = if tempname
+    with assert(io.open(tempname))\read "*a"
+      os.remove tempname
+  else
+    stdout
+
+
+  content, {
+    layout: false
+    content_type: "video/mp4"
+    headers: {
+      "X-Accel-Expires": if opts and opts.cache_duration != nil
+        opts.cache_duration or nil
+      else
+        CACHE_DURATION_SHORT
+      "X-Args": table.concat args, " "
+      "X-Encode-Time": "%.2fs"\format elapsed
+    }
+  }
+
+
+
 class extends lapis.Application
   handle_error: (err, trace) =>
     -- block any caching from happening
@@ -175,6 +237,43 @@ class extends lapis.Application
         "X-Accel-Expires": CACHE_DURATION_SHORT
       }
     }
+
+  "/youtube/:video_id/preview-transcode": capture_errors_json respond_to {
+    GET: =>
+      config = require("lapis.config").get!
+      source_uri = "http://127.0.0.1:#{config.port}/youtube/#{@params.video_id}/preview"
+
+      -- this will just copy the stream over but update the container so we have duration in header
+      -- this will still have spaced out keyframes though, which will make seeking annoying
+      -- transcode_video {
+      --   "ffmpeg"
+      --   "-i", source_uri
+      --   "-c:v", "copy"
+      --   "-f", "mp4"
+      --   "-an"
+      --   "$OUT"
+      -- }, {
+      --   through_file: "$OUT"
+      -- }
+
+
+      transcode_video {
+        "ffmpeg"
+        "-i", source_uri
+        "-preset", "ultrafast"
+        "-r", "6"
+        "-crf", "30"
+        -- "-vf", "scale=w=256:h=144:force_original_aspect_ratio=decrease"
+        "-vf", "scale=w=426:h=240:force_original_aspect_ratio=decrease"
+        "-sws_flags", "fast_bilinear"
+        "-g", "2" -- very small "group of pictures" to enable quick seeking
+        "-f", "mp4"
+        "-an"
+        "$OUT"
+      }, {
+        through_file: "$OUT"
+      }
+  }
 
   "/youtube/:video_id/preview": capture_errors_json respond_to {
     GET: =>
@@ -314,36 +413,5 @@ class extends lapis.Application
       }
         table.insert args, a
 
-      import notice from require "lapis.logging"
-      notice "TRANSCODING VIDEO: #{table.concat args, " "}"
-
-      shell = require "resty.shell"
-
-      start_time = socket.gettime!
-      ok, stdout, stderr, reason, status = shell.run args, nil, MAX_TIMEOUT, MAX_DOWNLOAD_SIZE
-      elapsed = socket.gettime! - start_time
-
-      notice "TRANSCODING COMPLETE: [#{"%.2fs"\format(elapsed)}] ok: #{ok}, stdout: #{#(stdout or "")}"
-
-      unless ok
-        stderr_summary = if stderr
-          trim truncate_response\match stderr
-
-        return status: 500, json: {
-          errors: {"failed to transcode"}
-          :ok
-          :stderr
-          :reason
-          :status
-        }
-
-      stdout, {
-        layout: false
-        content_type: "video/mp4"
-        headers: {
-          "X-Accel-Expires": CACHE_DURATION_SHORT
-          "X-Args": table.concat args, " "
-          "X-Encode-Time": "%.2fs"\format elapsed
-        }
-      }
+      transcode_video args
   }
