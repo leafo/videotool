@@ -347,7 +347,7 @@ class extends lapis.Application
         assert_error parse_dimension\match(@params.height), "invalid width"
 
         width = tonumber @params.width
-        assert_error width >= 10 and width <= 1080, "width must be between 10 and 1080"
+        assert_error width >= 10 and width <= 1920, "width must be between 10 and 1080"
 
         height = tonumber @params.height
         assert_error height >= 10 and height <= 1080, "height must be between 10 and 1080"

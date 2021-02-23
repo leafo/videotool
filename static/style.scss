@@ -1,9 +1,97 @@
 
+$green: #8CFF82;
+
+body {
+    font-family: sans-serif;
+}
+
+fieldset {
+    border: 1px solid #aaa;
+    margin-bottom: 10px;
+    &:last-child {
+        margin-bottom: 0;
+    }
+}
+
+.top_split {
+    display: flex;
+
+    .instructions {
+        flex: 1;
+        margin-left: 20px;
+        h2 {
+            margin-top: 0;
+        }
+
+        ul, p {
+            font-size: 14px;
+        }
+    }
+}
 
 video.video_preview {
     width: 640px;
     height: 360px;
     background: #dadada;
+}
+
+.render_options {
+    margin-bottom: 10px;
+}
+
+.segment_range_input {
+    font-family: monospace;
+    border: 1px solid;
+    border-radius: 2px;
+    outline-color: blue;
+
+    &.is_invalid {
+        border-color: red;
+        box-shadow: 0 0 0 1px red;
+        outline-color: red;
+    }
+}
+
+.segment_list {
+    list-style: none;
+    margin: 10px 0;
+    padding: 0;
+
+    li {
+        margin-bottom: 5px;
+        &:last-child {
+            margin-bottom: 0;
+        }
+    }
+
+    .segment_row {
+        border-left: 4px solid #dada;
+        padding-left: 10px;
+        display: flex;
+        align-items: center;
+
+        > * {
+            margin-right: 10px;
+            &:last-child {
+                margin-left: 0;
+            }
+        }
+
+        input[type=text] {
+            width: 100px;
+            padding: 3px;
+        }
+
+        .spacer {
+            flex: 1;
+            height: 0px;
+            border-bottom: 1px dotted #dadada;
+        }
+
+        &.nearest {
+            border-color: $green;
+        }
+    }
 }
 
 .scrubber {
@@ -12,6 +100,7 @@ video.video_preview {
     margin: 20px 0;
     position: relative;
     overflow: hidden;
+    outline-color: blue;
 
     .current_time {
         z-index: 2;
