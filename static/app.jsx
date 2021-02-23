@@ -14,7 +14,8 @@ class Main extends React.Component {
       quality: "25",
       videoID: "FLi0St-B8vw",
       currentTime: 0,
-      segments: []
+      segments: [],
+      history: []
     }
   }
 
@@ -38,8 +39,28 @@ class Main extends React.Component {
     return this.sortSegments().reverse().find(s => this.state.currentTime >= s[0])
   }
 
+  makeHistory() {
+    let history = this.state.history.concat([
+      this.state.segments
+    ])
+
+    // truncate if too long
+    while (history.length > 50) {
+      history.shift()
+    }
+
+    return history
+  }
+
+  undo() {
+    let history = this.state.history.slice()
+    let segments = history.pop()
+    this.setState({ history, segments })
+  }
+
   pushSegment(start, stop) {
     this.setState({
+      history: this.makeHistory(),
       segments: this.state.segments.concat([
         [start, stop]
       ])
@@ -48,6 +69,7 @@ class Main extends React.Component {
 
   updateSegment(toUpdate, start, stop) {
     this.setState({
+      history: this.makeHistory(),
       segments: this.state.segments.map(s => {
         if (s == toUpdate) {
           return [start, stop]
@@ -60,6 +82,7 @@ class Main extends React.Component {
 
   removeSegment(idx) {
     this.setState({
+      history: this.makeHistory(),
       segments: this.state.segments.filter((s, i) => i != idx)
     })
   }
@@ -173,12 +196,22 @@ class Main extends React.Component {
 
       <fieldset>
         <legend>Segments</legend>
-        <button
-          type="button"
-          onClick={e => {
-            this.pushSegment(this.state.currentTime, this.state.currentTime + 2)
-          }}
-        >New Segment</button>
+        <div>
+          <button
+            type="button"
+            onClick={e => {
+              this.pushSegment(this.state.currentTime, this.state.currentTime + 2)
+            }}
+          >New Segment</button>
+
+          {" "}
+
+          <button
+            type="button"
+            disabled={this.state.history.length == 0}
+            onClick={e => { this.undo() }}
+          >Undo</button>
+        </div>
 
         <ul class="segment_list">
           {this.state.segments.map((segment, idx) =>
