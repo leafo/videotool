@@ -79,6 +79,40 @@ export class Scrubber extends React.PureComponent {
     return !!this.state.windowMoveListener
   }
 
+
+  onKeyDown(e) {
+    let delta
+
+    switch (e.keyCode) {
+      case 73: // i
+        this.props.insertSegment()
+        break
+      case 83: // s
+        this.props.setStop()
+        break
+      case 32:
+        this.props.togglePlay()
+        break
+      case 37: // left
+        delta = -10
+        break
+      case 39: // right
+        delta = 10
+        break
+      case 38: // up
+        delta = 60
+        break
+      case 40: // down
+        delta = -60
+        break
+    }
+
+    if (delta != null) {
+      let frameTime = 1/60
+      this.props.setCurrentTime(this.props.currentTime + frameTime * delta)
+    }
+  }
+
   render() {
     this.scrubberRef ||= React.createRef()
 
@@ -116,38 +150,7 @@ export class Scrubber extends React.PureComponent {
         e.preventDefault()
         this.startDrag(e)
       }}
-      onKeyDown={e => {
-        let delta
-
-        switch (e.keyCode) {
-          case 73: // i
-            this.props.insertSegment()
-            break
-          case 83: // s
-            this.props.setStop()
-            break
-          case 32:
-            this.props.togglePlay()
-            break
-          case 37: // left
-            delta = -10
-            break
-          case 39: // right
-            delta = 10
-            break
-          case 38: // up
-            delta = 60
-            break
-          case 40: // down
-            delta = -60
-            break
-        }
-
-        if (delta != null) {
-          let frameTime = 1/60
-          this.props.setCurrentTime(this.props.currentTime + frameTime * delta)
-        }
-      }}
+      onKeyDown={this._onKeyDown ||= this.onKeyDown.bind(this)}
     >
       {currentTime}
       {segments}

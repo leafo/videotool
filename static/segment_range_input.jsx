@@ -43,7 +43,7 @@ export class SegmentRangeInput extends React.PureComponent {
       case 13: // enter
         this.commitChange()
         break
-      case 27: // enter
+      case 27: // escape
         this.setState({
           editing: false
         })

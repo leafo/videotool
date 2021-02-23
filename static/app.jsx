@@ -3,6 +3,7 @@ import * as ReactDOM from 'react-dom'
 
 import {Scrubber} from "./scrubber"
 import {SegmentRangeInput} from "./segment_range_input"
+import {VideoSelector} from "./video_selector"
 
 const classNames = require("classnames");
 
@@ -12,25 +13,51 @@ class Main extends React.Component {
     this.state = {
       resolution: "1280x720",
       quality: "25",
-      videoID: "FLi0St-B8vw",
+      videoID: null,
       currentTime: 0,
       segments: [],
       history: []
     }
   }
 
-  componentDidMount() {
-    // buffer the entire video into memory up front to make seeking performant
-    this.setState({
-      loading: true
-    })
+  setVideoID(videoID) {
+    let oldObjectURL = this.state.videoObjectURL
 
-    fetch(this.previewURL()).then((res) => res.arrayBuffer()).then((res) => {
-      let blob = new Blob([res])
-      let objectURL = URL.createObjectURL(blob)
-      this.videoRef.current.src = objectURL
-      this.setState({
-        loading: false
+    this.setState({
+      loading: true,
+      currentTime: 0,
+      segments: [],
+      history: [],
+      errors: false,
+      videoObjectURL: null,
+      videoID,
+    }, () => {
+      if (oldObjectURL) {
+        URL.revokeObjectURL(oldObjectURL)
+      }
+
+      // buffer the entire video into memory up front to make seeking performant
+      fetch(this.previewURL()).then((res) => {
+        let contentType = res.headers.get('content-type')
+        if (contentType == "application/json") {
+          // there was an error processing the result
+          res.json().then((obj) => {
+            console.log(obj)
+            this.setState({
+              errors: obj.errors,
+              loading: false
+            })
+          })
+        } else {
+          res.arrayBuffer().then(buffer => {
+            let blob = new Blob([buffer])
+            let objectURL = URL.createObjectURL(blob)
+            this.setState({
+              videoObjectURL: objectURL,
+              loading: false
+            })
+          })
+        }
       })
     })
   }
@@ -129,9 +156,19 @@ class Main extends React.Component {
     let nearestSegment = this.getNearestSegment()
 
     return <div class="video_editor">
+      <VideoSelector onVideoID={this._setVideoID ||= this.setVideoID.bind(this)} />
+
+      <ul class="errors">{(this.state.errors || []).map(e => 
+        <li>{e}</li>
+      )}</ul>
+
       <section class="top_split">
         <video
-          class="video_preview"
+          class={classNames("video_preview", {
+            loading: this.state.loading
+          })}
+          src={this.state.videoObjectURL}
+          key={this.state.videoObjectURL || "empty-video"}
           onDurationChange={e => {
             this.setState({
               duration: e.target.duration
@@ -156,7 +193,7 @@ class Main extends React.Component {
               <li><code>Up</code> — Move 1 second ahead</li>
               <li><code>Down</code> — Move 1 second back</li>
               <li><code>i</code> — Insert new segment at current time</li>
-              <li><code>s</code> — Set the end position of current segment</li>
+              <li><code>s</code> — Set the end position of current segment to current time</li>
             </ul>
           </div>
           <div>
