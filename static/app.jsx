@@ -133,6 +133,9 @@ class Main extends React.Component {
   setTime(time) {
     let video = this.videoRef.current
     if (video) {
+      if (!video.paused) {
+        video.pause()
+      }
       video.currentTime = time
     }
   }
@@ -185,7 +188,7 @@ class Main extends React.Component {
         <section class="instructions">
           <div>
             <strong>With scrubber selected</strong>
-            <p>Clicking/dragging will navigate video.</p>
+            <p>Clicking and dragging will navigate video.</p>
             <ul>
               <li><code>Space</code> — Toggle play/pause</li>
               <li><code>Right</code> — Move ~10 frames ahead</li>
@@ -198,6 +201,8 @@ class Main extends React.Component {
           </div>
           <div>
             <strong>With segment input selected</strong>
+            <p>Hold <code>Alt</code> and click and drag to nudge the value. Hold shift to move faster.</p>
+
             <ul>
               <li><code>Up</code> — Update 1 second ahead</li>
               <li><code>Down</code> — Update 1 second back</li>
@@ -227,7 +232,7 @@ class Main extends React.Component {
 
       <div class="playback_controls">
         <code class="current_time">
-          {this.state.currentTime} / {this.state.duration}
+          {this.state.currentTime} / {this.state.duration || "∅"}
         </code>
       </div>
 
