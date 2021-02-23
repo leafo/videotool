@@ -406,12 +406,14 @@ class extends lapis.Application
         "-map", "[outv]"
         "-vcodec", "h264"
         "-crf", "#{quality}"
-        "-movflags", "frag_keyframe+empty_moov" -- this allows us to pipe the output
+        -- "-movflags", "frag_keyframe+empty_moov" -- this allows us to pipe the output
         "-f", "mp4"
         "-an"
-        "-"
+        "$OUT"
       }
         table.insert args, a
 
-      transcode_video args
+      transcode_video args, {
+        through_file: "$OUT"
+      }
   }
