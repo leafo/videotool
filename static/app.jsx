@@ -228,8 +228,9 @@ class Main extends React.Component {
               <SegmentRangeInput
                 value={segment[0]}
                 class="start"
-                isInvalid={segment[0] >= segment[1]}
+                isInvalid={segment[0] >= segment[1] || segment[0] > this.state.duration}
                 setCurrentTime={this._setTime}
+                duration={this.state.duration}
                 updateValue={v => this.updateSegment(segment, v, segment[1])}
               />
               <span>—</span>
@@ -244,7 +245,8 @@ class Main extends React.Component {
                 value={segment[1]}
                 class="stop"
                 setCurrentTime={this._setTime}
-                isInvalid={segment[0] >= segment[1]}
+                isInvalid={segment[0] >= segment[1] || segment[0] > this.state.duration}
+                duration={this.state.duration}
                 updateValue={v => this.updateSegment(segment, segment[0], v)}
               />
               {" "}
