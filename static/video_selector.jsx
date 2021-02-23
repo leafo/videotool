@@ -16,6 +16,8 @@ export class VideoSelector extends React.PureComponent {
     this.setState({
       value,
       isInvalid: value != "" && !value.match(YOUTUBE_PATTERN)
+    }, () => {
+      this.commitChange() // originally we didn't commit on edit, but is' easier this way
     })
   }
 
