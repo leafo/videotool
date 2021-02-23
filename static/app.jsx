@@ -213,6 +213,14 @@ class Main extends React.Component {
         </section>
       </section>
 
+
+      <section class="playback_controls">
+        <button type="button" onClick={e => this.togglePlay()}>Play/Pause</button>
+        <code class="current_time">
+          {this.state.currentTime} / {this.state.duration || "∅"}
+        </code>
+      </section>
+
       <Scrubber
         segments={this.state.segments}
         setCurrentTime={this._setTime}
@@ -229,12 +237,6 @@ class Main extends React.Component {
           }
         }}
       />
-
-      <div class="playback_controls">
-        <code class="current_time">
-          {this.state.currentTime} / {this.state.duration || "∅"}
-        </code>
-      </div>
 
       <fieldset>
         <legend>Segments</legend>

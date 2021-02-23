@@ -139,10 +139,26 @@ video.video_preview {
     }
 }
 
+.playback_controls {
+    margin: 10px 0;
+    display: flex;
+    align-items: center;
+
+    > * {
+        margin-right: 10px;
+        &:last-child {
+            margin-right: 0;
+        }
+    }
+}
+
+
+
 .scrubber {
+    margin: 10px 0;
     height: 20px;
+    flex: 1;
     background: #dadada;
-    margin: 20px 0;
     position: relative;
     overflow: hidden;
     outline-color: blue;
