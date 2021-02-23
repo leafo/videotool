@@ -327,7 +327,11 @@ class extends lapis.Application
 
   "/youtube/:video_id/slice/:ranges(/:width[%d]x:height[%d](/:quality[%d]))": capture_errors_json respond_to {
     GET: =>
-      -- source_bytes, format = assert_error get_source @params.video_id
+      -- we do this first to ensure that the source is loaded in to the cache,
+      -- since it apperas the proxy lock cache isn't working. This will also
+      -- give us a better error if the video isn't able to be downloaded
+      assert_error get_source @params.video_id
+
       config = require("lapis.config").get!
       source_uri = "http://127.0.0.1:#{config.port}/youtube/#{@params.video_id}/source"
 
