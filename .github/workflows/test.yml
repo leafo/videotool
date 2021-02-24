@@ -1,0 +1,35 @@
+name: "test"
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@master
+    - uses: leafo/gh-actions-lua@master
+      with:
+        luaVersion: "luajit-openresty"
+
+    - uses: leafo/gh-actions-luarocks@master
+
+    - name: install tup
+      run: |
+        sudo apt-get install tup
+
+    - name: npm 
+      run: |
+        npm install
+
+    - name: lua
+      run: |
+        luarocks build --only-deps
+
+    - name: build
+      run: |
+        tup init
+        tup
+
+
+
