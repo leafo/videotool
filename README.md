@@ -1,8 +1,9 @@
 
 # videotool
 
-Tool for quickly cutting youtube videos. This tool acts like a frontend to
-`youtube-dl` with heavy caching using nginx built in caching.
+Tool for quickly cutting youtube videos. This tool is a frontend to
+`youtube-dl` and `ffmpeg` for a specific workflow with heavy caching using
+nginx.
 
 Dependencies:
 

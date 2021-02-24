@@ -1,14 +1,16 @@
 package = "videotool"
 version = "dev-1"
 source = {
-   url = ""
+   url = "https://github.com/leafo/videotool.git"
 }
+
 description = {
-   homepage = "",
+   homepage = "https://github.com/leafo/videotool",
    license = "MIT"
 }
 
 dependencies = {
+  "moonscript",
   "lua-resty-http",
   "lapis ~> 1.8.3",
 }
