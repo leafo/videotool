@@ -1,4 +1,4 @@
-PHONY: install_deps purge_cache
+.PHONY: install_deps purge_cache
 
 install_deps:
 	npm install
