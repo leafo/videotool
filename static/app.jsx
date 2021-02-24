@@ -20,6 +20,18 @@ class Main extends React.Component {
     }
   }
 
+  componentDidMount() {
+    this._onKeyDown ||= this.windowOnKeyDown.bind(this)
+    window.addEventListener("keydown", this._onKeyDown)
+  }
+
+  componentWillUnmount() {
+    if (this._onKeyDown) {
+      window.removeEventListener("keydown", this._onKeyDown)
+      delete this._onKeyDown
+    }
+  }
+
   setVideoID(videoID) {
     let oldObjectURL = this.state.videoObjectURL
 
@@ -107,10 +119,10 @@ class Main extends React.Component {
     })
   }
 
-  removeSegment(idx) {
+  removeSegment(toRemove) {
     this.setState({
       history: this.makeHistory(),
-      segments: this.state.segments.filter((s, i) => i != idx)
+      segments: this.state.segments.filter((s) => s != toRemove)
     })
   }
 
@@ -151,6 +163,63 @@ class Main extends React.Component {
     }
   }
 
+  windowOnKeyDown(e) {
+    if (!this.state.videoID || this.state.loading) {
+      return
+    }
+
+    // ignore if we are in an input
+    if (event.target.matches("input, button, textarea")) {
+      return
+    }
+
+    let delta
+    switch (e.keyCode) {
+      case 73: { // i
+        // insert segment
+        this.pushSegment(this.state.currentTime, this.state.currentTime + 2)
+        return
+        break
+      }
+      case 83: { // s
+        // set stop
+        let nearestSegment = this.getNearestSegment()
+        if (nearestSegment) {
+          this.updateSegment(nearestSegment, nearestSegment[0], this.state.currentTime)
+        }
+        break
+      }
+      case 32: { // space
+        this.togglePlay()
+        break
+      }
+      case 8: {  // backspace
+        let nearestSegment = this.getNearestSegment()
+        if (nearestSegment) {
+          this.removeSegment(nearestSegment)
+        }
+        break
+      }
+      case 37: // left
+        delta = -10
+        break
+      case 39: // right
+        delta = 10
+        break
+      case 38: // up
+        delta = 60
+        break
+      case 40: // down
+        delta = -60
+        break
+    }
+
+    if (delta != null) {
+      let frameTime = 1/60
+      this.setTime(this.state.currentTime + frameTime * delta)
+    }
+  }
+
   render() {
     this.videoRef ||= React.createRef()
     this._setTime ||= this.setTime.bind(this)
@@ -187,8 +256,7 @@ class Main extends React.Component {
 
         <section class="instructions">
           <div>
-            <strong>With scrubber selected</strong>
-            <p>Clicking and dragging will navigate video.</p>
+            <strong>Global hotkeys</strong>
             <ul>
               <li><code>Space</code> — Toggle play/pause</li>
               <li><code>Right</code> — Move ~10 frames ahead</li>
@@ -197,6 +265,7 @@ class Main extends React.Component {
               <li><code>Down</code> — Move 1 second back</li>
               <li><code>i</code> — Insert new segment at current time</li>
               <li><code>s</code> — Set the end position of current segment to current time</li>
+              <li><code>backspace</code> — Remove the current segment</li>
             </ul>
           </div>
           <div>
@@ -224,18 +293,8 @@ class Main extends React.Component {
       <Scrubber
         segments={this.state.segments}
         setCurrentTime={this._setTime}
-        togglePlay={this._togglePlay}
         currentTime={this.state.currentTime}
         duration={this.state.duration}
-        insertSegment={this._insertSegment ||= () => {
-          this.pushSegment(this.state.currentTime, this.state.currentTime + 2)
-        }}
-        setStop={this._setStop ||= () => {
-          let nearestSegment = this.getNearestSegment()
-          if (nearestSegment) {
-            this.updateSegment(nearestSegment, nearestSegment[0], this.state.currentTime)
-          }
-        }}
       />
 
       <fieldset>
@@ -294,7 +353,7 @@ class Main extends React.Component {
                 updateValue={v => this.updateSegment(segment, segment[0], v)}
               />
               {" "}
-              <button type="button" onClick={e => this.removeSegment(idx)}>Remove</button>
+              <button type="button" onClick={e => this.removeSegment(segment)}>Remove</button>
               <div class="spacer"></div>
               <code class="duration">
                 {Math.max(0, segment[1] - segment[0]).toFixed(2)}
