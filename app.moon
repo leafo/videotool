@@ -189,6 +189,8 @@ transcode_video = (args, opts) ->
     layout: false
     content_type: "video/mp4"
     headers: {
+      "Content-Disposition": if opts and opts.filename
+        "inline; filename=\"#{opts.filename\gsub '"', "\\%1"}\""
       "X-Accel-Expires": if opts and opts.cache_duration != nil
         opts.cache_duration or nil
       else
@@ -272,6 +274,7 @@ class extends lapis.Application
         "$OUT"
       }, {
         through_file: "$OUT"
+        filename: "#{@params.video_id}-preview-#{height}p-#{os.time!}.mp4"
       }
   }
 
@@ -420,5 +423,6 @@ class extends lapis.Application
 
       transcode_video args, {
         through_file: "$OUT"
+        filename: "#{@params.video_id}-#{height}p-#{os.time!}.mp4"
       }
   }
