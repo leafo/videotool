@@ -13,6 +13,7 @@ dependencies = {
   "moonscript",
   "lua-resty-http",
   "lapis ~> 1.8.3",
+  "lapis-systemd ~> 1.0",
 }
 
 build = {
