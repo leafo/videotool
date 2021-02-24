@@ -41,6 +41,7 @@ class Main extends React.Component {
       segments: [],
       history: [],
       errors: false,
+      sourcePreload: null,
       videoObjectURL: null,
       videoID,
     }, () => {
@@ -61,6 +62,14 @@ class Main extends React.Component {
             })
           })
         } else {
+
+          // preload the source
+          this.setState({
+            sourcePreload: fetch(this.sourceURL(), {
+              method: "HEAD"
+            })
+          })
+
           res.arrayBuffer().then(buffer => {
             let blob = new Blob([buffer])
             let objectURL = URL.createObjectURL(blob)
@@ -130,6 +139,10 @@ class Main extends React.Component {
     let copy = this.state.segments.slice()
     copy.sort((a,b) => a[0] - b[0])
     return copy
+  }
+
+  sourceURL() {
+    return `/youtube/${this.state.videoID}/source`
   }
 
   previewURL() {
