@@ -5,6 +5,7 @@ config "development", ->
 
 config "production", ->
   port 10008
+  code_cache "on"
 
   systemd {
     user: true
