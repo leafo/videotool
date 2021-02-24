@@ -76,7 +76,7 @@ get_formats = (video_id) ->
   else
     nil, "failed to download formats: #{res.status}"
 
-get_source = (video_id) ->
+get_source = (video_id, opts={}) ->
   config = require("lapis.config").get!
   uri = "http://127.0.0.1:#{config.port}/youtube/#{video_id}/source"
 
@@ -85,14 +85,14 @@ get_source = (video_id) ->
   httpc\set_timeout MAX_TIMEOUT
 
   res, err = assert httpc\request_uri uri, {
-    method: "GET"
+    method: opts.method or "GET"
     keepalive: false
   }
 
   if res.status == 200
     res.body, from_json res.headers["X-Format"]
   else
-    nil, "failed to download formats: #{res.status}"
+    nil, "failed to fetch source: #{res.status}"
 
 download_video = (video_id, preferred_formats={}) ->
   formats, err = get_formats video_id
@@ -328,9 +328,10 @@ class extends lapis.Application
   "/youtube/:video_id/slice/:ranges(/:width[%d]x:height[%d](/:quality[%d]))": capture_errors_json respond_to {
     GET: =>
       -- we do this first to ensure that the source is loaded in to the cache,
-      -- since it apperas the proxy lock cache isn't working. This will also
-      -- give us a better error if the video isn't able to be downloaded
-      assert_error get_source @params.video_id
+      -- since it apperas the proxy lock cache isn't working.
+      assert_error get_source @params.video_id, {
+        method: "HEAD"
+      }
 
       config = require("lapis.config").get!
       source_uri = "http://127.0.0.1:#{config.port}/youtube/#{@params.video_id}/source"
