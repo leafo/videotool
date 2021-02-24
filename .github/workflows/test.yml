@@ -16,7 +16,7 @@ jobs:
 
     - name: install tup
       run: |
-        sudo apt-get install tup
+        sudo apt-get install tup sassc
 
     - name: npm 
       run: |
