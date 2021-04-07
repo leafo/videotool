@@ -19,6 +19,7 @@ truncate_response = do
   Cs (printable_character + P(1) / "")^-100
 
 extract_formats = types.partial {
+  duration: types.any\tag "duration"
   formats: types.array_of types.one_of {
     -- ignore the audio formats
     types.partial {
@@ -210,8 +211,8 @@ class extends lapis.Application
 
     super err, trace
 
-  "/": capture_errors_json =>
-    formats = get_formats "FLi0St-B8vw"
+  "/test": capture_errors_json =>
+    formats = get_formats "fYfxTyWdeT4"
     json: formats
 
   "/youtube/:video_id/formats": capture_errors_json =>
